@@ -49,7 +49,7 @@ Figure	Output file					Created in		Section	Line
 	monetary_compare_var_cum_4_lags_wide.pdf	monetary_validation.R	6.3	 357
 14	data_cleaned_wide.pdf				robust_iterate.R	5.6	1052
 15	shocks.pdf					robust_iterate.R	5.7	1071
-16	irf_epsilon_decomp.pdf				robust_iterate.R	5.2	 786
+16	irf_epsilon_decomp_pc50.pdf			robust_iterate.R	5.2	 821
 17	cf_consol_y_wide.pdf				robust_iterate.R	5.4	 902
 18	passive_cf_compare_wide.pdf			robust_iterate.R	5.4	 976
 19	var_decomp_NK3_monetary_news_6shocks		validate_via_sim_2025.R 5.4	 429

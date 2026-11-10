@@ -51,7 +51,7 @@ data.labels <- c( ir03='3-month \ninterest rate',
 sign.var <- 'y'
 
 ## 1.2 Specifications ##
-start.pd <- '1969-01-01' # '1983-01-12' # '1950-01-01'    # Set later to restrict the sample
+start.pd <- '1968-12-01' # Include 1968Q4 when forming the forecast predictors.
 n.lag.ml <- 8           # The number of lags available for the ML forecast construction
 lag.max <- 6            # The maximum number of lags for automatic lag selection.
 n.pds.irf <- 25         # IRF length
@@ -61,7 +61,7 @@ l.var.names <- list(
                    do.cf=TRUE, lags=1, ml.clean=TRUE, make.ml=TRUE,  force.f=FALSE,
                    label.def=TRUE ),
   baseline_ml_1_lag_spf=list( vars=c('infl', 'ir03', 'y', 'gov', 'tax', 'hs' ), do.cumul=FALSE,
-                          do.cf=FALSE, lags=1, ml.clean=TRUE, make.ml=TRUE,  force.f=FALSE,
+                          do.cf=FALSE, lags=1, ml.clean=TRUE, make.ml=TRUE,  force.f=TRUE,
                           label.def=FALSE, use.spf.i=TRUE, init='1981-03-01', final='2022-03-01' ),
   baseline_ml_1_lag_short=list( vars=c('infl', 'ir03', 'y', 'gov', 'tax', 'hs' ), do.cumul=FALSE,
                           do.cf=FALSE, lags=1, ml.clean=TRUE, make.ml=FALSE,  force.f=FALSE,
@@ -186,10 +186,20 @@ for( this.vars in names(l.var.names) ){
         # Need to summarize how much info is coming from the forecasts here.
     df.f.clean <- fcast.clean$df %>%
       set_names( c('date', paste0( data.names, '_z' ) ) )
-    df.clean <- df %>%
-      select( date, data.names, fcast.names ) %>%
-      left_join( df.f.clean ) %>%
-      na.omit()
+    if (force.f) {
+      # The SPF robustness check uses both forecast sets and the raw-sample centering.
+      df.clean <- df %>%
+        select(date, all_of(data.names), all_of(fcast.names)) %>%
+        left_join(df.f.clean, by = 'date') %>%
+        na.omit()
+    } else {
+      # Center the baseline on the complete estimation sample after adding ML forecasts.
+      df.clean <- df %>%
+        select(date, all_of(data.names)) %>%
+        left_join(set_names(df.f.clean, c('date', fcast.names)), by = 'date') %>%
+        na.omit() %>%
+        mutate(across(where(is.numeric), ~ .x - mean(.x)))
+    }
     
     glmnet.raw.rmse.ratio <- (sapply( fcast.clean$details, function(x) x$rmse )['glmnet',] / sapply( fcast.clean$details, function(x) x$rmse )['raw',]) %>% mean
       
