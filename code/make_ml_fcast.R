@@ -12,7 +12,6 @@
 
 #### 0. Set up ####
 rm(list=ls())
-setwd('C:\\Users\\pbarrett\\OneDrive - International Monetary Fund (PRD)\\identification from RE/')
 library(tidyverse)
 source('code/fcast_cleaning.R')
 select <- dplyr::select
@@ -24,6 +23,7 @@ mult.100.vars <- c('y', 'infl', 'gov', 'sur', 'fed', 'tax' )
 ml.fcast.file <- 'data/ml_fcast.rdata'
 n.lag.ml <- 8 
 fig.dir <- 'figures/00_forecasts'
+dir.create(fig.dir, recursive=TRUE, showWarnings=FALSE)
 
 ### 2.0 Read the raw data ###
 df.in <- data.in.file %>% read_csv
@@ -33,8 +33,8 @@ df <- df.in %>%
           date=make_date( year, 3*quarter, 1 ) ) %>%
   select( date, everything(), -year, -quarter ) %>% 
   rename_with(~str_remove(., '_dt')) %>%
-  # filter( date >= start.pd ) %>%
-  mutate_if( is.numeric, na.approx, rule=2 ) %>%
+  filter(!is.na(date)) %>%
+  mutate_if( is.numeric, zoo::na.approx, rule=2 ) %>%
   mutate_if( is.numeric, function(x) x-mean(x,na.rm=T) ) %>%
   mutate_at(vars(contains(mult.100.vars)), function(x) x*100 )
 data.names <- names(df)[ !(names(df) %>% str_detect('_f'))] %>%
@@ -57,7 +57,7 @@ fcast.importances <- lapply(1:length(data.names),
   na.omit() %>%
   filter(importance >0 ) %>%
   separate( variable, c('variable', 'lag'), sep = '\\.l' ) %>%
-  mutate( lag=replace_na(lag,0),
+  mutate( lag=replace_na(as.numeric(lag),0),
           fcast=(str_sub(variable,-2,-1)=='_f')) %>%
   select(outcome, lag, variable, fcast, importance) %>%
   arrange(outcome, lag, variable) %>%

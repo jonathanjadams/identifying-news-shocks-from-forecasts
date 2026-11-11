@@ -14,19 +14,15 @@
 
 #### 0. Set up ####
 rm(list=ls())
-setwd('C:\\Users\\pbarrett\\OneDrive - International Monetary Fund (PRD)\\identification from RE/')
 library(tidyverse)
 library(data.table)
 library(lubridate)
 # library(zoo)
 source('code/var_sim_fns.R')
-# source('code/archive/make_var_fns.R')
 source('code/make_rf.R')
 source('code/bootstrap.R')
 source('code/structural_identification.R')
 source('code/plotting.R')
-source('code/archive/make_var_fns.R')
-  # For the old code
 select <- dplyr::select
 v.shk.types <- c('contemp', 'news', 'epsilon' ) 
 
@@ -193,7 +189,9 @@ loss.fn <- function( cand.irf ){
 }
 
 # 3.2.2 Apply the identification restrictions: Near-exact B, Sigma #
-if(n.horiz.dsge==2){
+# These diagnostics require positive news variance for every shock.
+has.news.variance <- all(diag(m.D.v.2) > 0)
+if(n.horiz.dsge==2 && has.news.variance){
   m.big.A <- rbind( cbind( m.B.reg.1 %*% m.C + m.A, 
                            m.B.reg.1 %*% m.A),
                         cbind( m.C, m.A ) )
@@ -226,50 +224,33 @@ if(n.horiz.dsge==2){
 
 
 ## 3.3 Now excluding the errors: Eq (7) upper and lower ##
-st.reg.rhs.f.x <- paste0( ' ~ 0 + ', paste0( 'lag(',fcast.names, ')' ) %>% paste( collapse=' + ') )
-l.lm.reg.f.x <- lapply( fcast.names, function(x) lm( paste0( x, st.reg.rhs.f.x ) %>% as.formula(), df.sim ) )
-m.B.reg.f.x <- sapply( l.lm.reg.f.x, function(x) (x %>% coef)[ x %>% coef %>% names %>% grepl('^lag',.) ] ) %>%
-  t() %>% set_rownames(fcast.names)
-err.hat.1.reg.x <- sapply( l.lm.reg.f.x, resid )
-err.hat.2.reg.x <- sapply( data.names, function(this.var) 
-  df.sim %>% mutate( err=eval(parse( text = paste0(this.var, 
-                                                   '-lag( ', this.var, '_f )' ) ) ) ) %>% pull(err) )[-1,]
-big.Sigma.reg.f.x <- cov( cbind( err.hat.1.reg.x, err.hat.2.reg.x ) )
-r.sq.f.x <- sapply( l.lm.reg.f.x, function(x) x %>% summary() %>% .[['r.squared']] )
-    # NB: R squared is <1 because the errors are excluded from the regression
-B.err.f.x <- (m.B.reg.f.x - m.B.reg.1) %>% abs %>% max
-big.Sigma.err.f.x <- (big.Sigma.reg.f.x - m.big.Sigma.reg.1) %>% abs %>% max
-    # CONCLUSION: We get some small error on the estimates for B and Sigma
-struct.f.x <- structural_identification( list(m.B.reg.f.x), big.Sigma.reg.f.x, 
-                                         ordering.loss.fn = loss.fn, n.match.pds=n.match.pds )
-    # Apply the structural identification transformation
-A.err.f.x <- (struct.f.x$A - m.A) %>% abs %>% max
-B.err.f.x <- (m.B.reg.f.x - m.B.reg.1) %>% abs %>% max
-C.err.f.x <- (struct.f.x$C - m.C) %>% abs %>% max
-    # CONCLUSION: Errors on the structural parameters are not nothing
-
+if(has.news.variance){
+  st.reg.rhs.f.x <- paste0( ' ~ 0 + ', paste0( 'lag(',fcast.names, ')' ) %>% paste( collapse=' + ') )
+  l.lm.reg.f.x <- lapply( fcast.names, function(x) lm( paste0( x, st.reg.rhs.f.x ) %>% as.formula(), df.sim ) )
+  m.B.reg.f.x <- sapply( l.lm.reg.f.x, function(x) (x %>% coef)[ x %>% coef %>% names %>% grepl('^lag',.) ] ) %>%
+    t() %>% set_rownames(fcast.names)
+  err.hat.1.reg.x <- sapply( l.lm.reg.f.x, resid )
+  err.hat.2.reg.x <- sapply( data.names, function(this.var)
+    df.sim %>% mutate( err=eval(parse( text = paste0(this.var,
+                                                     '-lag( ', this.var, '_f )' ) ) ) ) %>% pull(err) )[-1,]
+  big.Sigma.reg.f.x <- cov( cbind( err.hat.1.reg.x, err.hat.2.reg.x ) )
+  r.sq.f.x <- sapply( l.lm.reg.f.x, function(x) x %>% summary() %>% .[['r.squared']] )
+      # NB: R squared is <1 because the errors are excluded from the regression
+  B.err.f.x <- (m.B.reg.f.x - m.B.reg.1) %>% abs %>% max
+  big.Sigma.err.f.x <- (big.Sigma.reg.f.x - m.big.Sigma.reg.1) %>% abs %>% max
+      # CONCLUSION: We get some small error on the estimates for B and Sigma
+  struct.f.x <- structural_identification( list(m.B.reg.f.x), big.Sigma.reg.f.x,
+                                           ordering.loss.fn = loss.fn, n.match.pds=n.match.pds )
+      # Apply the structural identification transformation
+  A.err.f.x <- (struct.f.x$A - m.A) %>% abs %>% max
+  B.err.f.x <- (m.B.reg.f.x - m.B.reg.1) %>% abs %>% max
+  C.err.f.x <- (struct.f.x$C - m.C) %>% abs %>% max
+      # CONCLUSION: Errors on the structural parameters are not nothing
+}
 
 
 #### 4. Apply our method ####
 
-## 4.1 The old code ##
-l.est.old <- make.struct.var( df.sim %>% select( pd, data.names, fcast.names) %>% na.omit, 
-                              data.names, fcast.names, pd.name='pd', 
-                          lags = n.lags, restrict=TRUE, details=FALSE,
-                          ordering.loss.fn = loss.fn, n.match.pds=n.match.pds )
-message( 'Maximum eigenvalues' )
-m.eig <- sapply( list( restricted=l.est.old ), function(x) 
-  sapply( list( x.form=x$big.B.x, f.form=x$big.B.f), function(y) ( y %>% eigen() )$values %>% abs %>% max) )
-m.eig %>% print()
-  # Check the eigenvalues
-B.err.est.old <- (l.est.old$B - l.B.j[[1]]) %>% abs %>% max
-big.Sigma.err.est.old <- (l.est.old$Sigma - m.big.Sigma.reg.1) %>% abs %>% max
-A.err.est.old <- (l.est.old$A - m.A) %>% abs %>% max
-C.err.est.old <- (l.est.old$C - m.C) %>% abs %>% max
-  # CONCLUSION: There are some errors, even with a huge simulation.  But not terrible
-
-
-## 4.2 The new code ##
 l.rf.ols.sim <- make.rf.var( df.sim %>% select( pd, data.names, fcast.names) %>% na.omit, data.names, fcast.names, pd.name='pd', 
                              lags = n.lags, restrict=TRUE, do.aic=FALSE )
 l.rf.adj.sim <- list(rf=l.rf.ols.sim)
@@ -426,6 +407,7 @@ gg.var.decomp <- ggplot( df.var.decomp.compare, aes(x=source.cht, y=value, fill=
 
 gg.var.decomp %>% print()
 
+dir.create('figures/simulations', recursive=TRUE, showWarnings=FALSE)
 ggsave( paste0('figures/simulations/var_decomp_', gsub( '\\.', '_', run.name), '.pdf'), 
         gg.var.decomp, height=4, width=4 )
 
