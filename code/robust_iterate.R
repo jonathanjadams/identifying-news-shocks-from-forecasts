@@ -338,7 +338,7 @@ for( this.vars in names(l.var.names) ){
   ## 3.3 Compute the news IRFs
   message('Constructing IRFs: point estimates...')
   df.str.irf.pt.init <- irf_var_fcast( l.struct$pt, var.names=data.names, n.pds = n.pds.irf ) %>%
-    mutate_if(is.numeric, funs(ifelse(is.nan(.), 0, .))) %>%
+    mutate_if(is.numeric, ~ifelse(is.nan(.), 0, .)) %>%
     mutate( type=as.factor(type), pc='pt.est' ) %>%
     select( pd, type, dimension, everything() )
       # The point estimates
@@ -393,7 +393,7 @@ for( this.vars in names(l.var.names) ){
   l.pt.v.scale <- l.struct$pt ; l.pt.v.scale$D.v.2 <- l.pt.v.scale$D.u.2
   df.str.irf.pt.v.scale <- irf_var_fcast( l.pt.v.scale, var.names=data.names, 
                                           n.pds = n.pds.irf ) %>%
-    mutate_if(is.numeric, funs(ifelse(is.nan(.), 0, .))) %>%
+    mutate_if(is.numeric, ~ifelse(is.nan(.), 0, .)) %>%
     mutate( type=as.factor(type), pc='pt.est' ) %>%
     select( pd, type, dimension, everything() )%>%
     left_join(df.labels, by='dimension' )
@@ -414,7 +414,7 @@ for( this.vars in names(l.var.names) ){
   df.str.irf.boot <- 
     lapply( 1:n.boot, function(i) irf_var_fcast( l.struct$boot[[i]], 
                                                  var.names=data.names, n.pds = n.pds.irf ) %>%
-    mutate_if(is.numeric, funs(ifelse(is.nan(.), 0, .))) %>%
+    mutate_if(is.numeric, ~ifelse(is.nan(.), 0, .)) %>%
     mutate( type=as.factor(type), i.boot=i ) ) %>%
     data.table::rbindlist() %>%
     select( i.boot, pd, type, dimension, everything() ) %>%
@@ -426,7 +426,7 @@ for( this.vars in names(l.var.names) ){
       this.boot$D.v.2 <- this.boot$D.u.2
       return( irf_var_fcast( this.boot, 
                              var.names=data.names, n.pds = n.pds.irf ) %>%
-                mutate_if(is.numeric, funs(ifelse(is.nan(.), 0, .))) %>%
+                mutate_if(is.numeric, ~ifelse(is.nan(.), 0, .)) %>%
                 mutate( type=as.factor(type), i.boot=i ) )
       } ) %>%
     data.table::rbindlist() %>%
@@ -548,10 +548,11 @@ for( this.vars in names(l.var.names) ){
                 tax.cum=cumsum(tax) * irf.sign ) %>%
         ungroup() %>%
         group_by( dimension, shk.name, pd ) %>%
-        summarise( pc=c( p.vals, .5, rev(1-p.vals ) ),
-                   y.cum=quantile( y.cum, c( p.vals, .5, rev(1-p.vals ) ) ),
-                   gov.cum=quantile( gov.cum, c( p.vals, .5, rev(1-p.vals ) ) ),
-                   tax.cum=quantile( tax.cum, c( p.vals, .5, rev(1-p.vals ) ) ) )
+        reframe( pc=c( p.vals, .5, rev(1-p.vals ) ),
+                 y.cum=quantile( y.cum, c( p.vals, .5, rev(1-p.vals ) ) ),
+                 gov.cum=quantile( gov.cum, c( p.vals, .5, rev(1-p.vals ) ) ),
+                 tax.cum=quantile( tax.cum, c( p.vals, .5, rev(1-p.vals ) ) ) ) %>%
+        group_by( dimension, shk.name, pd )
       
       l.df.cumul.mults[[this.shk]] <- lapply( l.mults, function(x) l.df.cumul[[this.shk]] %>%
                                    filter( pd==x$h ) %>% 
@@ -607,10 +608,11 @@ for( this.vars in names(l.var.names) ){
                 tax.cum=cumsum(tax) * irf.sign ) %>%
         ungroup() %>%
         group_by( dimension, shk.name, pd ) %>%
-        summarise( pc=c( p.vals, .5, rev(1-p.vals ) ),
-                   y.cum=quantile( y.cum, c( p.vals, .5, rev(1-p.vals ) ) ),
-                   gov.cum=quantile( gov.cum, c( p.vals, .5, rev(1-p.vals ) ) ),
-                   tax.cum=quantile( tax.cum, c( p.vals, .5, rev(1-p.vals ) ) ) )
+        reframe( pc=c( p.vals, .5, rev(1-p.vals ) ),
+                 y.cum=quantile( y.cum, c( p.vals, .5, rev(1-p.vals ) ) ),
+                 gov.cum=quantile( gov.cum, c( p.vals, .5, rev(1-p.vals ) ) ),
+                 tax.cum=quantile( tax.cum, c( p.vals, .5, rev(1-p.vals ) ) ) ) %>%
+        group_by( dimension, shk.name, pd )
       
       l.df.cumul.mults.all[[this.shk]] <- lapply( l.mults, function(x) l.df.cumul.all[[this.shk]] %>%
                                                 filter( pd==x$h ) %>% 
