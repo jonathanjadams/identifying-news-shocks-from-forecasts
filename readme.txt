@@ -10,12 +10,19 @@ This file outlines how to reproduce the main figure & tables in the above-mentio
 
 
 #### Code ####
-The main codes are listed below in the order in which they should be run:
-1. robust_iterate.R		Creates estimates for the baseline and most robustness checks.
-2. monetary_validation.R	Computes the monetary policy shock validation exercise.
-3. var_decomp_compare.R		Compares the variance decomposition across specifications.
-4. validate_via_sim_2025.R	Computes the variance decomposition for simulated data
-In all files, you will need to set the output folder name, which currently defaults to "final_replication", as well as the working directory for the code.
+Run these scripts in order from the repository root (for example,
+Rscript code/make_ml_fcast.R).
+1. make_ml_fcast.R              Builds data/ml_fcast.rdata from the checked-in CSV.
+2. robust_iterate.R             Creates estimates for the baseline and most robustness checks.
+3. monetary_validation.R        Computes the monetary policy shock validation exercise.
+4. var_decomp_compare.R         Compares the variance decomposition across specifications.
+5. validate_via_sim_2025.R      Computes the variance decomposition for simulated data.
+
+For steps 2–4, set the working directory in each script to the repository root
+and use the same empirical output folder, which defaults to "final_replication".
+For Figure 19, run step 5 for the baseline and then set run.name to each of
+NK3_monetary_news_6shocks_var_u_0.95, NK3_monetary_news_6shocks_var_u_0.99,
+and NK3_monetary_news_6shocks_var_u_1. The PDFs are saved in figures/simulations.
 
 
 #### Data ####
@@ -52,7 +59,7 @@ Figure	Output file					Created in		Section	Line
 16	irf_epsilon_decomp_pc50.pdf			robust_iterate.R	5.2	 821
 17	cf_consol_y_wide.pdf				robust_iterate.R	5.4	 902
 18	passive_cf_compare_wide.pdf			robust_iterate.R	5.4	 976
-19	var_decomp_NK3_monetary_news_6shocks		validate_via_sim_2025.R 5.4	 429
+19	var_decomp_NK3_monetary_news_6shocks		validate_via_sim_2025.R 5.4	 411
 
 ## Tables
 Table	Output file					Created in		Section	Line
