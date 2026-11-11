@@ -134,10 +134,10 @@ df.lm <-
   nest_by(shk.short, shk.long) %>%
   mutate( mod=list(lm(ir03 ~ mon.shk, data=data ) )) 
     # Simple projection onto contemporaneous interest rates
-df.lm.coefs <- df.lm %>% summarize( tidy( mod ) ) 
+df.lm.coefs <- df.lm %>% reframe( tidy( mod ) )
 df.lm.sumy <- df.lm %>% summarize( glance( mod ) ) 
 df.lm.fitted <- cbind( df.all %>% filter(!is.na(shk.short)) %>% arrange( shk.short ) %>% select(date),
-                       df.lm %>% summarize( augment( mod ) ) )
+                       df.lm %>% reframe( augment( mod ) ) )
   # The coefficients and the fitted values
 ggplot( df.lm.fitted, aes(x=date, y=.fitted ) ) +
   geom_line(aes( color=shk.long, group=shk.long)) +
